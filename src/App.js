@@ -328,11 +328,25 @@ Formato de respuesta (JSON válido):
     if (view === 'map' && !mapInstance) {
       initMap();
     }
+    
+    // Cleanup para evitar múltiples inicializaciones
+    return () => {
+      if (mapInstance) {
+        mapInstance.remove();
+        setMapInstance(null);
+      }
+    };
   }, [view]);
 
   const initMap = () => {
     const mapDiv = document.getElementById('map-container');
     if (!mapDiv) return;
+
+    // Limpiar cualquier mapa existente
+    const existingMap = document.getElementById('leaflet-map');
+    if (existingMap && existingMap._leaflet_id) {
+      return; // Ya existe un mapa
+    }
 
     mapDiv.innerHTML = `
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -343,6 +357,14 @@ Formato de respuesta (JSON válido):
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.onload = () => {
       const L = window.L;
+      
+      // Verificar que no exista ya el mapa
+      const mapElement = document.getElementById('leaflet-map');
+      if (!mapElement) return;
+      if (mapElement._leaflet_id) {
+        return; // Ya inicializado
+      }
+      
       const map = L.map('leaflet-map').setView([MIAHUATLAN_CENTER.lat, MIAHUATLAN_CENTER.lng], 13);
       
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -386,10 +408,15 @@ Formato de respuesta (JSON válido):
   };
 
   useEffect(() => {
-    if (mapInstance && view === 'map') {
+    if (view === 'map' && reports.length > 0) {
+      // Reinicializar mapa cuando cambien filtros o reportes
+      if (mapInstance) {
+        mapInstance.remove();
+        setMapInstance(null);
+      }
       setTimeout(() => initMap(), 100);
     }
-  }, [selectedZone, reports]);
+  }, [selectedZone, reports, view]);
 
   const determineZone = (lat, lng) => {
     const latDiff = lat - MIAHUATLAN_CENTER.lat;
